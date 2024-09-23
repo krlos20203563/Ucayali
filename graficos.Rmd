@@ -1,0 +1,416 @@
+---
+title: "Cuantia_Ucayali"
+author: "Carlos Crespín"
+date: "2024-09-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(rio)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(leaflet)
+library(ggthemes)
+ucayali=import("denuncias_2018-2023.csv")
+```
+
+```{r}
+ucayali=filter(ucayali, DPTO_HECHO_NEW=="UCAYALI")
+den_year=ucayali%>%
+  group_by(ANIO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+```
+
+# 1. Evolución del número total de denuncias entre 2018-2023
+```{r}
+den_lp=ggplot(den_year, aes(x = ANIO, y = denuncias)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Denuncias en Ucayali 2018-2023",
+       x = "Año",
+       y = "Total de casos") +
+  theme_gdocs()
+den_lp
+```
+```{r}
+saveRDS(den_lp,"den_lp.rds")
+```
+
+
+```{r}
+table(ucayali$TIPO)
+```
+
+```{r}
+kind=ucayali%>%
+  group_by(TIPO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+kind=filter(kind, denuncias>2000)
+kind[kind$TIPO=='FALTAS','TIPO']='Faltas'
+kind[kind$TIPO=='LEY DE VIOLENCIA CONTRA LA MUJER Y GRUPOS VULNERABLES','TIPO']='Contra la mujer'
+kind[kind$TIPO=='LIBERTAD (DELITO)','TIPO']='Libertad'
+kind[kind$TIPO=='PATRIMONIO (DELITO)','TIPO']='Patrimonio'
+kind[kind$TIPO=='SEGURIDAD PUBLICA (DELITO)','TIPO']='Seguridad'
+kind[kind$TIPO=='VIDA, EL CUERPO Y LA SALUD (DELITO)','TIPO']='Salud'
+```
+
+
+
+# 2. Tipo de delitos con mayor incidencia en Ucayali
+```{r}
+den_bar=ggplot(kind, aes(x=TIPO, y=denuncias))+
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste(round(denuncias, 1))), vjust = -1, size = 3) +
+  xlab("Tipo de delitos") + 
+  ylab("Número de denuncias") +
+  ggtitle("Número de denuncias según tipo de delito") +  
+  theme_minimal() +      
+  theme(axis.text.x = element_text(size = 11))  # Reducir el tamaño del texto en el eje x
+
+den_bar
+
+```
+```{r}
+saveRDS(den_bar, "den_bar.rds")
+```
+
+
+```{r}
+pob=import("pobUca.xlsx")
+```
+
+
+
+```{r}
+ucayali[ucayali$TIPO=='FALTAS','TIPO']='Faltas'
+ucayali[ucayali$TIPO=='LEY DE VIOLENCIA CONTRA LA MUJER Y GRUPOS VULNERABLES','TIPO']='Contra la mujer'
+ucayali[ucayali$TIPO=='LIBERTAD (DELITO)','TIPO']='Libertad'
+ucayali[ucayali$TIPO=='PATRIMONIO (DELITO)','TIPO']='Patrimonio'
+ucayali[ucayali$TIPO=='SEGURIDAD PUBLICA (DELITO)','TIPO']='Seguridad'
+ucayali[ucayali$TIPO=='VIDA, EL CUERPO Y LA SALUD (DELITO)','TIPO']='Salud'
+```
+
+
+```{r}
+del_line <- ucayali %>%
+  filter(TIPO %in% c("Contra la mujer", "Patrimonio"))
+del_line=del_line%>%
+  group_by(ANIO, TIPO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+```
+
+# 3. Evolución de Contra la Mujer y Patrimoniales
+```{r}
+tipos_line=ggplot(del_line, aes(x = ANIO, y = denuncias, color = TIPO, group = TIPO)) +
+  geom_line(size = 1) +     # Línea más gruesa
+  geom_point(size = 3) +      # Puntos en las líneas
+  labs(title = "Evolución de denuncias por tipo de delito en Ucayali",
+       x = "Año",
+       y = "Número de denuncias",
+       color = "Tipo de delito") + 
+  theme_minimal() +           # Tema minimalista
+  theme(plot.title = element_text(hjust = 0.5))  # Centra el título
+tipos_line
+```
+```{r}
+saveRDS(tipos_line, "tipos_line.rds")
+```
+
+```{r}
+viofipsi=filter(ucayali, TIPO=="Contra la mujer")
+```
+
+```{r}
+summary(viofipsi$denuncias)
+```
+
+
+```{r}
+viofipsi=viofipsi%>%
+  group_by(MODALIDAD)%>%
+  summarise(denuncias=sum(CANTIDAD))
+viofipsi=filter(viofipsi, denuncias>100)
+viofipsi[viofipsi$MODALIDAD=='VIOLENCIA ECONOMICA O PATRIMONIAL','MODALIDAD']='Económica'
+viofipsi[viofipsi$MODALIDAD=='VIOLENCIA FISICA Y PSICOLOGICA','MODALIDAD']='Física y psicológica'
+viofipsi[viofipsi$MODALIDAD=='VIOLENCIA FISICA','MODALIDAD']='Física'
+viofipsi[viofipsi$MODALIDAD=='VIOLENCIA PSICOLOGICA', 'MODALIDAD']="Psicológica"
+vio_bar=ggplot(viofipsi, aes(x=MODALIDAD, y=denuncias))+
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste(round(denuncias, 1))), vjust = -1, size = 3) +
+  xlab("Tipos de violencia contra la mujer") + 
+  ylab("Número de denuncias") +
+  ggtitle("Número de denuncias según modalidad") +  
+  theme_minimal() +      
+  theme(axis.text.x = element_text(size = 11))  # Reducir el tamaño del texto en el eje x
+
+vio_bar
+```
+```{r}
+saveRDS(vio_bar, "vio_bar.rds")
+```
+
+
+# 4. Mapas
+
+```{r}
+library(ggplot2)
+library(sp)
+mapDIST=sf::read_sf("C:/Users/Carlos Daniel/Documents/Tesis_de_Licenciatura/Delincuencia_en_el_Peru/distritos_1874/DISTRITOS1874.shp")
+ggplot(mapDIST) + geom_sf()
+```
+```{r}
+map_Ucayali=filter(mapDIST, DEPARTAMEN=="UCAYALI")
+ggplot(map_Ucayali)+geom_sf()
+```
+
+
+```{r}
+summary(pob$pob2019)
+```
+
+```{r}
+summary(pob$pob2021)
+```
+
+Se concluye el utilizar una tasa de denuncias por cada 1000 habitantes.
+Ahora se procederá a crear dos subdatas para procesar: 
+- Contra la mujer en 2021 
+- Patrimonial 2019
+
+```{r}
+violencia=filter(ucayali, TIPO=="Contra la mujer")
+violencia=filter(violencia, ANIO==2021)
+violencia=select(violencia, c(5,9))
+violencia=violencia%>%
+  group_by(DIST_HECHO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+violencia[violencia$DIST_HECHO=='A.VON.HUMBOLDT','DIST_HECHO']='ALEXANDER VON HUMBOLDT'
+names(violencia)=c("Distrito","denuncias")
+```
+
+```{r}
+poblacion2021=select(pob, c(1,5))
+```
+
+```{r}
+vio2021 <- full_join(violencia, poblacion2021, by = "Distrito")
+vio2021$denuncias <- ifelse(is.na(vio2021$denuncias), 0, vio2021$denuncias)
+vio2021 <- vio2021 %>%
+  mutate(tasa = denuncias/pob2021*1000)
+vio2021$tasa <- round(vio2021$tasa, 2)
+vio2021=select(vio2021, c(1,4))
+```
+
+```{r}
+setdiff(vio2021$Distrito, map_Ucayali$DISTRITO)
+```
+
+```{r}
+names(map_Ucayali)=c("Departamento","Provincia","Distrito","Institucion","geometry")
+map_Ucayali[map_Ucayali$Distrito=='YURÚA','Distrito']='YURUA'
+map_Ucayali[map_Ucayali$Distrito=='PURÚS','Distrito']='PURUS'
+```
+
+```{r}
+viopob2021=merge(map_Ucayali,vio2021)
+names(viopob2021)=c("Distrito","Departamento","Provincia","Institución","Tasa_por_1000_habitantes","geometry")
+
+map_vio <- ggplot(viopob2021) +
+  geom_sf(aes(fill = Tasa_por_1000_habitantes)) +
+  scale_fill_gradient(low = "white", high = "darkred")  # Invertir la escala de colores
+
+# Mostrar el gráfico
+print(map_vio)
+```
+```{r}
+saveRDS(map_vio, "map_vio.rds")
+```
+
+
+Patrimoniales
+
+```{r}
+patrimoniales=filter(ucayali, TIPO=="Patrimonio")
+patrimoniales=filter(patrimoniales, ANIO==2019)
+patrimoniales=select(patrimoniales, c(5,9))
+patrimoniales=patrimoniales%>%
+  group_by(DIST_HECHO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+patrimoniales[patrimoniales$DIST_HECHO=='A.VON.HUMBOLDT','DIST_HECHO']='ALEXANDER VON HUMBOLDT'
+names(patrimoniales)=c("Distrito","denuncias")
+```
+
+
+```{r}
+poblacion2019=select(pob, c(1,3))
+
+```
+
+```{r}
+patrimoniales2019 <- full_join(patrimoniales, poblacion2019, by = "Distrito")
+patrimoniales2019=filter(patrimoniales2019, !is.na(pob2019))
+patrimoniales2019$denuncias <- ifelse(is.na(patrimoniales2019$denuncias), 0, patrimoniales2019$denuncias)
+patrimoniales2019 <- patrimoniales2019 %>%
+  mutate(tasa = denuncias/pob2019*1000)
+patrimoniales2019$tasa <- round(patrimoniales2019$tasa, 2)
+patrimoniales2019=select(patrimoniales2019, c(1,4))
+```
+
+
+```{r}
+patrimoniales2019=merge(map_Ucayali,patrimoniales2019)
+names(patrimoniales2019)=c("Distrito","Departamento","Provincia","Institución","Tasa_por_1000_habitantes","geometry")
+map_patrimonio <- ggplot(patrimoniales2019) +
+  geom_sf(aes(fill = Tasa_por_1000_habitantes)) +
+  scale_fill_gradient(low = "white", high = "darkred")  # Invertir la escala de colores
+
+# Mostrar el gráfico
+print(map_patrimonio)
+```
+
+```{r}
+saveRDS(map_patrimonio, "map_patrimonio.rds")
+```
+
+```{r}
+summary(modalidades$denuncias)
+```
+
+
+```{r}
+mod_pat=filter(ucayali, TIPO=="Patrimonio")
+modalidades=mod_pat%>%
+  group_by(SUB_TIPO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+modalidades=filter(modalidades, denuncias>500)
+modalidades[modalidades$SUB_TIPO=='APROPIACION ILICITA','SUB_TIPO']='Apropiación ilícita'
+modalidades[modalidades$SUB_TIPO=='DAÑOS','SUB_TIPO']='Daños'
+modalidades[modalidades$SUB_TIPO=='ESTAFA Y OTRAS DEFRAUDACIONES','SUB_TIPO']='Estafa'
+modalidades[modalidades$SUB_TIPO=='EXTORSION','SUB_TIPO']='Extorsión'
+modalidades[modalidades$SUB_TIPO=='HURTO','SUB_TIPO']='Hurto'
+modalidades[modalidades$SUB_TIPO=='RECEPTACION','SUB_TIPO']='Receptacion'
+modalidades[modalidades$SUB_TIPO=='EXTORSION','SUB_TIPO']='Extorsión'
+modalidades[modalidades$SUB_TIPO=='ROBO','SUB_TIPO']='Robo'
+modalidades[modalidades$SUB_TIPO=='USURPACION','SUB_TIPO']='Usurpación'
+
+mod_bar=ggplot(modalidades, aes(x=SUB_TIPO, y=denuncias))+
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste(round(denuncias, 1))), vjust = -1, size = 3) +
+  xlab("Tipos de delitos patrimoniales") + 
+  ylab("Número de denuncias") +
+  ggtitle("Número de denuncias según modalidad") +  
+  theme_minimal() +      
+  theme(axis.text.x = element_text(size = 11))  # Reducir el tamaño del texto en el eje x
+mod_bar
+```
+```{r}
+saveRDS(mod_bar,"mod_bar.rds")
+```
+
+
+```{r}
+subtipo_pat=mod_pat%>%
+  group_by(ANIO, SUB_TIPO)%>%
+  summarise(denuncias=sum(CANTIDAD))
+subtipo_pat[subtipo_pat$SUB_TIPO=='DAÑOS','SUB_TIPO']='Daños'
+subtipo_pat[subtipo_pat$SUB_TIPO=='ESTAFA Y OTRAS DEFRAUDACIONES','SUB_TIPO']='Estafa'
+subtipo_pat[subtipo_pat$SUB_TIPO=='HURTO','SUB_TIPO']='Hurto'
+subtipo_pat[subtipo_pat$SUB_TIPO=='EXTORSION','SUB_TIPO']='Extorsión'
+subtipo_pat[subtipo_pat$SUB_TIPO=='ROBO','SUB_TIPO']='Robo'
+subtipo_pat[subtipo_pat$SUB_TIPO=='USURPACION','SUB_TIPO']='Usurpación'
+subtipo_pat <- subtipo_pat %>%
+  filter(SUB_TIPO %in% c("Daños","Extorsión","Estafa","Hurto","Robo","Usurpación"))
+hurtrob <- subtipo_pat %>%
+  filter(SUB_TIPO %in% c("Hurto","Robo"))
+hurtrob_line=ggplot(hurtrob, aes(x = ANIO, y = denuncias, color = SUB_TIPO, group = SUB_TIPO)) +
+  geom_line(size = 1) +     # Línea más gruesa
+  geom_point(size = 3) +      # Puntos en las líneas
+  labs(title = "Evolución del hurto y robo en Ucayali",
+       x = "Año",
+       y = "Número de denuncias",
+       color = "Tipo de delito") + 
+  theme_minimal() +           # Tema minimalista
+  theme(plot.title = element_text(hjust = 0.5))  # Centra el título
+hurtrob_line
+```
+```{r}
+saveRDS(hurtrob_line,"hurtrob_line.rds")
+```
+
+
+```{r}
+otros <- subtipo_pat %>%
+  filter(SUB_TIPO %in% c("Daños","Extorsión","Estafa","Usurpación"))
+otros_line=ggplot(otros, aes(x = ANIO, y = denuncias, color = SUB_TIPO, group = SUB_TIPO)) +
+  geom_line(size = 1) +     # Línea más gruesa
+  geom_point(size = 3) +      # Puntos en las líneas
+  labs(title = "Evolución de los otros tipos de delitos patrimoniales en Ucayali",
+       x = "Año",
+       y = "Número de denuncias",
+       color = "Tipo de delito") + 
+  theme_minimal() +           # Tema minimalista
+  theme(plot.title = element_text(hjust = 0.5))  # Centra el título
+otros_line
+```
+
+```{r}
+saveRDS(otros_line,"otros_line.rds")
+```
+
+
+```{r}
+vio_women=filter(ucayali, TIPO=="Contra la mujer")
+fipsico <- vio_women %>%
+  filter(MODALIDAD %in% c("VIOLENCIA PSICOLOGICA","VIOLENCIA FISICA"))
+fipsico=fipsico%>%
+  group_by(ANIO, MODALIDAD)%>%
+  summarise(denuncias=sum(CANTIDAD))
+fipsico_line=ggplot(fipsico, aes(x = ANIO, y = denuncias, color = MODALIDAD, group = MODALIDAD)) +
+  geom_line(size = 1) +     # Línea más gruesa
+  geom_point(size = 3) +      # Puntos en las líneas
+  labs(title = "Evolución de los otros tipos de delitos patrimoniales en Ucayali",
+       x = "Año",
+       y = "Número de denuncias",
+       color = "Tipo de delito") + 
+  theme_minimal() +           # Tema minimalista
+  theme(plot.title = element_text(hjust = 0.5))  # Centra el título
+fipsico_line
+```
+```{r}
+saveRDS(fipsico_line, "fipsico_line")
+```
+
+
+```{r}
+ecomix <- vio_women %>%
+  filter(MODALIDAD %in% c("VIOLENCIA ECONOMICA O PATRIMONIAL"))
+ecomix=ecomix%>%
+  group_by(ANIO, MODALIDAD)%>%
+  summarise(denuncias=sum(CANTIDAD))
+eco_line=ggplot(ecomix, aes(x = ANIO, y = denuncias, color = MODALIDAD, group = MODALIDAD)) +
+  geom_line(size = 1) +     # Línea más gruesa
+  geom_point(size = 3) +      # Puntos en las líneas
+  labs(title = "Evolución de la violencia económica contra la mujer",
+       x = "Año",
+       y = "Número de denuncias",
+       color = "Tipo de violencia") + 
+  theme_minimal() +           # Tema minimalista
+  theme(plot.title = element_text(hjust = 0.5))  # Centra el título
+eco_line
+```
+```{r}
+saveRDS(eco_line, "eco_line.rds")
+```
+
+
+
+
+
+
+

@@ -1,0 +1,120 @@
+---
+title: "Caracterización del delito en Ica"
+author: Carlos Crespin
+date: "`r format(Sys.Date(), '%d de %B de %Y')`"
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(kableExtra)
+library(rio)# always
+```
+
+
+Aspectos generales
+===============================================================================
+
+Column {data-width=650}
+--------------------------------------------------------------------------------
+
+### Evolución de las denuncias en Ucayali 2018-2023
+
+```{r}
+readRDS("den_lp.rds") 
+```
+
+Column {data-width=350}
+--------------------------------------------------------------------------------
+
+### Tipos de delitos 
+
+```{r}
+readRDS("den_bar.rds")
+```
+
+### Evolucion de los tipos de delitos más denunciados
+
+```{r}
+readRDS("tipos_line.rds")
+```
+
+Delitos Patrimoniales
+================================================================================
+
+Column {data-width=500}
+--------------------------------------------------------------------------------
+
+### Mapa de concentración de delitos patrimoniales por distrito
+
+```{r}
+readRDS("map_patrimonio.rds")
+```
+
+### Tipos de delitos 
+
+```{r}
+readRDS("mod_bar.rds")
+```
+
+Column {data-width=500}
+--------------------------------------------------------------------------------
+
+### Evolución del hurto y robo en Ucayali
+
+```{r}
+readRDS("hurtrob_line.rds")
+```
+
+### Evolución de los otros tipos de delitos patrimoniales
+
+```{r}
+readRDS("otros_line.rds")
+```
+
+Delito contra la mujer en Ucayali
+================================================================================
+
+
+Column {data-width=500}
+--------------------------------------------------------------------------------
+
+### Mapa de turnos de delitos
+
+```{r}
+readRDS("map_vio.rds")
+```
+
+### Tipos de delitos 
+
+```{r}
+readRDS("vio_bar.rds")
+```
+
+Column {data-width=500}
+--------------------------------------------------------------------------------
+
+### Evolución por año de las denuncias por violencia física y psicológica
+
+```{r}
+readRDS("fipsico_line")
+```
+
+### Evolución de la violencia económica 
+
+```{r}
+readRDS("eco_line.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
